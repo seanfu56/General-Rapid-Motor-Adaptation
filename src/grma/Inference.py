@@ -1,34 +1,38 @@
 import argparse
 import warnings
 import os
-from Algo.SAC.SAC import sac
-from Algo.TD3.TD3 import td3
+import torch
+from Algo.SAC.SAC_inf import sac
+# from Algo.TD3.TD3 import td3
 
 import gymnasium as gym
 from Algo.SAC.Model import MLPActorCritic as SacModel
 
 from datetime import datetime
-
+from Util.AdaptModel import RNN, CNN
 
 
 warnings.filterwarnings('ignore')
 
-ENV              = 'Humanoid-v4'
+PRETRAIN_DIR = '2024-08-04_11-44-1'
+FILENAME = 'ep_3000_policy.pth'
+
+ENV              = 'HalfCheetah-v4'
 ALGORITHM        = 'sac'
 START_EPOCHS     = 10
-NUM_TRAIN_EPOCHS = 3000
+NUM_TRAIN_EPOCHS = 1
 HIDDEN_DIM       = 256
 LR               = 3e-4
 NOISE_STD_MIN    = 0.1
 NOISE_STD_MAX    = 0.5
-NOISE_WARM_EP    = 3000
+NOISE_WARM_EP    = 1000
 NOISE_ADD_STD    = 0.01
 SEED             = 2024
 BATCH_SIZE       = 256
 LAYER            = 3
 BUFFER_SIZE      = 1000000
 PRINT            = True
-SAVE             = False
+SAVE             = True
 SAVE_FREQ        = 100
 PRINT_EPOCHS     = 100
 GAMMA            = 0.99
@@ -66,7 +70,7 @@ parser.add_argument('-nax', '--noise_std_max', type=float, default=NOISE_STD_MAX
 parser.add_argument('-na', '--noise_add_std', type=float, default=NOISE_ADD_STD)
 parser.add_argument('-b', '--batch_size', type=int, default=BATCH_SIZE)
 parser.add_argument('-l', '--layer', type=int, default=LAYER)
-parser.add_argument('-s', '--save', type=int, default=SAVE)
+
 
 args = parser.parse_args()
 
@@ -81,38 +85,62 @@ hyperparameter.noise_std_max    = args.noise_std_max
 hyperparameter.noise_add_std    = args.noise_add_std
 hyperparameter.batch_size       = args.batch_size
 hyperparameter.layer            = args.layer
-hyperparameter.save             = args.save != 0
 
 
 
 now = datetime.now()
 format_time = now.strftime(f'%Y-%m-%d_%H-%M-{int(now.second)}')
 
-save_dir = f'./model_ckpt/{hyperparameter.env}/{format_time}'
-os.makedirs(save_dir)
+# save_dir = f'./traj/{hyperparameter.env}/{format_time}'
+# os.makedirs(save_dir)
 
-with open(f'{save_dir}/setting.log', 'w') as file:
-    file.write('Hyperparameters: \n')
-    file.write('Env: '+ str(hyperparameter.env) + '\n')
-    file.write('Algorithm: '+ str(hyperparameter.algorithm) + '\n')
-    file.write("Epochs: "+ str(hyperparameter.num_train_epochs) + '\n')
-    file.write('Hidden_dim: '+ str(hyperparameter.hidden_dim) + '\n')
-    file.write('LR: '+ str(hyperparameter.lr) + '\n')
-    file.write('Noise_std_min: '+ str(hyperparameter.noise_std_min) + '\n')
-    file.write('Noise_std_max: '+ str(hyperparameter.noise_std_max) + '\n')
-    file.write('Noise_warm_ep: '+ str(hyperparameter.noise_warm_ep) + '\n')
-    file.write('Seed: '+ str(hyperparameter.seed) + '\n')
-    file.write('Batch_size: '+ str(hyperparameter.batch_size) + '\n')
-    file.write('Layer: '+ str(hyperparameter.layer) + '\n')
+# with open(f'{save_dir}/setting.log', 'w') as file:
+#     file.write('Hyperparameters: \n')
+#     file.write('Env: '+ str(hyperparameter.env) + '\n')
+#     file.write('Algorithm: '+ str(hyperparameter.algorithm) + '\n')
+#     file.write("Epochs: "+ str(hyperparameter.num_train_epochs) + '\n')
+#     file.write('Hidden_dim: '+ str(hyperparameter.hidden_dim) + '\n')
+#     file.write('LR: '+ str(hyperparameter.lr) + '\n')
+#     file.write('Noise_std_min: '+ str(hyperparameter.noise_std_min) + '\n')
+#     file.write('Noise_std_max: '+ str(hyperparameter.noise_std_max) + '\n')
+#     file.write('Noise_warm_ep: '+ str(hyperparameter.noise_warm_ep) + '\n')
+#     file.write('Seed: '+ str(hyperparameter.seed) + '\n')
+#     file.write('Batch_size'+ str(hyperparameter.batch_size) + '\n')
+#     file.write('Layer: '+ str(hyperparameter.layer) + '\n')
 
-with open(f'{save_dir}/training.log', 'w') as file:
-    pass
+# with open(f'{save_dir}/training.log', 'w') as file:
+#     pass
+
+STATE_DIM = 17
+ACTION_DIM = 6
+
+LENGTH = 30
+
+adapt_dir = f'./adapt_model/{hyperparameter.env}'
+
+model = RNN(STATE_DIM, ACTION_DIM, LENGTH)
+model = CNN(STATE_DIM, ACTION_DIM, LENGTH)
+model.load_state_dict(torch.load(f'{adapt_dir}/cnn.pth'))
 
 if(hyperparameter.algorithm == 'sac'):
     sac(lambda : (gym.make(hyperparameter.env)), actor_critic=SacModel, 
         ac_kwargs=dict(hidden_sizes=[hyperparameter.hidden_dim]*hyperparameter.layer), 
         gamma=hyperparameter.gamma, seed=hyperparameter.seed, epochs=hyperparameter.num_train_epochs,
-        noise_std_min=hyperparameter.noise_std_min, noise_std_max=hyperparameter.noise_std_max, noise_warm_epochs=hyperparameter.noise_warm_ep, 
-        plot=True, save=hyperparameter.save, save_freq=hyperparameter.save_freq, save_dir=save_dir)
+        noise_std_max=hyperparameter.noise_std_max, 
+        plot=True, 
+        save=hyperparameter.save,
+        save_dir = (f'./traj/{ENV}'),
+        pretrain_dir=(f'./model_ckpt/{ENV}/{PRETRAIN_DIR}/{FILENAME}'), 
+        adapt_model=model, 
+        length=LENGTH, 
+        model_type='cnn')
 
+'''
+def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0, 
+        steps_per_epoch=1000, epochs=100, gamma=0.99, 
+        alpha=0.2, 
+        num_test_episodes=1, max_ep_len=1000, 
+        plot=True, 
+        pretrain_dir=None):
 
+'''

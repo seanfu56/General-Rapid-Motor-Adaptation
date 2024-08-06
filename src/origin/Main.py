@@ -9,7 +9,7 @@ from Algo.SAC.Model import MLPActorCritic as SacModel
 
 warnings.filterwarnings('ignore')
 
-ENV              = 'Walker2d-v4'
+ENV              = 'HalfCheetah-v4'
 ALGORITHM        = 'sac'
 START_EPOCHS     = 10
 NUM_TRAIN_EPOCHS = 3000

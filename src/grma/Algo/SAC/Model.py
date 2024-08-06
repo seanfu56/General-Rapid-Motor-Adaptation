@@ -91,3 +91,4 @@ class MLPActorCritic(nn.Module):
         with torch.no_grad():
             a, _ = self.pi(obs, deterministic, False)
             return a.cpu().numpy()
+        

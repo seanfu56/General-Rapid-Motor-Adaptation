@@ -114,7 +114,7 @@ high = env.action_space.high
 lr_list = []
 
 for epoch in tqdm(range(1, NUM_TRAIN_EPOCHS + 1), ncols=80):
-     
+    
     timestep = 0
     total_reward = 0
 
