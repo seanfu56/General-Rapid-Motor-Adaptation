@@ -372,7 +372,7 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
         if (t+1) % steps_per_epoch == 0:
 
             # Test the performance of the deterministic version of the agent.
-            if(epoch % 1 == 0):            
+            if(epoch % 10 == 0):            
 
                 now = time.time()
 

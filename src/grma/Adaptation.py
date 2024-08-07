@@ -32,14 +32,16 @@ class NpDataset(Dataset):
 
         return image, label
 
-EPOCH = 1000
+EPOCH = 3000
 
-ENV = 'HalfCheetah-v4'
-MODEL = 'mlp'
+ENV = 'Humanoid-v4'
+MODEL = 'rnn'
+
+env = gym.make(ENV)
 
 
-STATE_DIM = 17
-ACTION_DIM = 6
+STATE_DIM = env.observation_space.shape[0]
+ACTION_DIM = env.action_space.shape[0]
 
 LENGTH = 30
 LR = 3e-3
@@ -127,6 +129,8 @@ valid_line, = ax.plot([], [], 'b-', label='validation loss')
 
 ax.legend()
 
+print(x.shape)
+
 train_loss_list = []
 valid_loss_list = []
 
@@ -152,11 +156,12 @@ for epoch in tqdm.tqdm(range(EPOCH), ncols=100):
 
             v_loss = criterion(yy, ll)
 
-    if(v_loss.item() < min_loss):
-        min_loss = v_loss.item()
-        print(f'training_loss: {loss.item():.5f}, valid_loss: {v_loss.item():.5f}, lr: {optimizer.param_groups[0]['lr']:.6f}, ***min_loss***')
-    else: 
-        print(f'training_loss: {loss.item():.5f}, valid_loss: {v_loss.item():.5f}, lr: {optimizer.param_groups[0]['lr']:.6f}') 
+    if epoch % 10 == 0:
+        if(v_loss.item() < min_loss):
+            min_loss = v_loss.item()
+            print(f'training_loss: {loss.item():.5f}, valid_loss: {v_loss.item():.5f}, lr: {optimizer.param_groups[0]['lr']:.6f}, ***min_loss***')
+        else: 
+            print(f'training_loss: {loss.item():.5f}, valid_loss: {v_loss.item():.5f}, lr: {optimizer.param_groups[0]['lr']:.6f}') 
 
     scheduler.step()
 

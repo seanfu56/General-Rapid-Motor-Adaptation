@@ -52,7 +52,7 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
         return ac.act(torch.as_tensor(o, dtype=torch.float32).to(device), 
                     deterministic)
 
-    def test_agent(type=None, id=0):
+    def test_agent(act_type = None, id = 0):
 
         state_list = []
         action_list = []
@@ -82,14 +82,21 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 pred = pred.detach().cpu().numpy()
                 # pred = noise - np.ones(act_dim)
                 # pred = np.zeros(act_dim)
+                # pred = np.array([-1., 0., 0., 0., 0., 0.])
                 pred_list.append(pred)
 
             a = get_action(np.append(o, pred), True)
 
-            aa = a * np.array([1., 1., 1., 1., 1., 1.])
+            if(act_type == 'malfunc'):
+                n = np.ones(act_dim)
+                n[id] -= 1
+                aa = a * n
+
+            else:
+                aa = a
             # aa = a * noise
 
-            action_list.append(a)
+            action_list.append(aa)
 
             o, r, d, _, _ = test_env.step(aa)
             ep_ret += r
@@ -100,24 +107,35 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
         return ep_ret, np.array(pred_list)
 
 
+    fig, axes = plt.subplots(nrows=3, ncols=2)
+
     reward_lists = []
 
     for i in tqdm.tqdm(range(epochs)):
 
-        reward, pred_list = test_agent()
+        reward, pred_list = test_agent(act_type='malfunc', id=5)
 
         # print(reward)
 
+        # print(len(pred_list))
+
+        for i, ax in enumerate(axes.flat):
+            ax.plot(pred_list[:, 0, i])
+            ax.set_title(f'{i}-th prediction')
+
         # print(pred_list.shape)
 
-        # plt.plot(pred_list[:, 0, 1])
+        # plt.plot(pred_list[:, 0, 0])
 
         # plt.show()
+
+        plt.tight_layout()
+
 
         reward_lists.append(reward)
 
     print(sum(reward_lists) / len(reward_lists))
 
-
+    plt.show()
 
 

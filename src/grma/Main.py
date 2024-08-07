@@ -21,14 +21,14 @@ HIDDEN_DIM       = 256
 LR               = 3e-4
 NOISE_STD_MIN    = 0.1
 NOISE_STD_MAX    = 0.5
-NOISE_WARM_EP    = 3000
+NOISE_WARM_EP    = 1000
 NOISE_ADD_STD    = 0.01
 SEED             = 2024
 BATCH_SIZE       = 256
 LAYER            = 3
 BUFFER_SIZE      = 1000000
 PRINT            = True
-SAVE             = False
+SAVE             = True
 SAVE_FREQ        = 100
 PRINT_EPOCHS     = 100
 GAMMA            = 0.99
@@ -57,6 +57,7 @@ class Hyperparameter:
 
 parser = argparse.ArgumentParser()
 
+parser.add_argument('--env', type=str, default=ENV)
 parser.add_argument('-a', '--algorithm', type=str, default=ALGORITHM)
 parser.add_argument('-e', '--epoch', type=int, default=NUM_TRAIN_EPOCHS)
 parser.add_argument('-hd', '--hidden_dim', type=int, default=HIDDEN_DIM)
@@ -72,6 +73,7 @@ args = parser.parse_args()
 
 hyperparameter = Hyperparameter()
 
+hyperparameter.env              = args.env
 hyperparameter.algorithm        = args.algorithm
 hyperparameter.num_train_epochs = args.epoch
 hyperparameter.hidden_dim       = args.hidden_dim

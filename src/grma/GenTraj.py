@@ -12,10 +12,10 @@ from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
-PRETRAIN_DIR = '2024-08-04_11-44-1'
-FILENAME = 'ep_3000_policy.pth'
+PRETRAIN_DIR = '2024-08-05_16-59-16'
+FILENAME = 'ep_10000_policy.pth'
 
-ENV              = 'HalfCheetah-v4'
+ENV              = 'Humanoid-v4'
 ALGORITHM        = 'sac'
 START_EPOCHS     = 10
 NUM_TRAIN_EPOCHS = 3000
@@ -59,6 +59,7 @@ class Hyperparameter:
 
 parser = argparse.ArgumentParser()
 
+parser.add_argument('--env', type=str, default=ENV)
 parser.add_argument('-a', '--algorithm', type=str, default=ALGORITHM)
 parser.add_argument('-e', '--epoch', type=int, default=NUM_TRAIN_EPOCHS)
 parser.add_argument('-hd', '--hidden_dim', type=int, default=HIDDEN_DIM)
@@ -74,6 +75,7 @@ args = parser.parse_args()
 
 hyperparameter = Hyperparameter()
 
+hyperparameter.env              = args.env
 hyperparameter.algorithm        = args.algorithm
 hyperparameter.num_train_epochs = args.epoch
 hyperparameter.hidden_dim       = args.hidden_dim

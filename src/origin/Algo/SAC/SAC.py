@@ -11,6 +11,8 @@ import Algo.SAC.Model as Model
 
 import matplotlib.pyplot as plt
 
+from torchinfo import summary
+
 class ReplayBuffer:
     """
     A simple FIFO experience replay buffer for SAC agents.
@@ -47,7 +49,9 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
         steps_per_epoch=1000, epochs=100, replay_size=int(1e6), gamma=0.99, 
         polyak=0.995, lr=1e-3, alpha=0.2, batch_size=100, start_steps=10000, 
         update_after=1000, update_every=50, num_test_episodes=1, max_ep_len=1000, 
-        logger_kwargs=dict(), save_freq=1):
+        logger_kwargs=dict(), save=False, save_freq=1, save_dir='',
+        noise_std_min=0.1, noise_std_max=0.5, noise_warm_epochs=1000, 
+        plot=True):
     """
     Soft Actor-Critic (SAC)
 
@@ -145,20 +149,37 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     """
 
+    if plot:
+        plt.ion()
+        fig, ax = plt.subplots()
+        line, =ax.plot([], [], 'r-')
+
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     torch.manual_seed(seed)
     np.random.seed(seed)
 
     env, test_env = env_fn(), env_fn()
-    obs_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
 
+    act_dim = env.action_space.shape[0]
+    obs_dim = env.observation_space.shape[0]
     # Action limit for clamping: critically, assumes all dimensions share the same bound!
     act_limit = env.action_space.high[0]
 
     # Create actor-critic module and target networks
-    ac = actor_critic(obs_dim, act_dim, act_limit, **ac_kwargs).to(device)
+    ac = actor_critic(obs_dim, act_dim, act_limit, **ac_kwargs)
+
+    with open(f'{save_dir}/setting.log', 'a') as file:
+        file.write('=============================================')
+        file.write(str(ac.pi) + '\n')
+        file.write(str(summary(ac.pi, (1, obs_dim), verbose=0)))
+        file.write('=============================================')
+        file.write(str(ac.q1) + '\n')
+        file.write(str(summary(ac.q1, ((1, obs_dim ), (1, act_dim)), verbose=0)))
+
+
+    ac.to(device)
     ac_targ = deepcopy(ac).to(device)
 
     # Freeze target networks with respect to optimizers (only update via polyak averaging)
@@ -256,7 +277,7 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     def get_action(o, deterministic=False):
         return ac.act(torch.as_tensor(o, dtype=torch.float32).to(device), 
-                      deterministic)
+                    deterministic)
 
     def test_agent():
 
@@ -273,7 +294,7 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
             
             reward_list.append(ep_ret)
 
-            print('reward: ', ep_ret)
+            # print(f'reward: {ep_ret:.2f}')
 
         return sum(reward_list) / len(reward_list)
 
@@ -290,6 +311,7 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # Main loop: collect experience in env and update/log each epoch
     for t in range(total_steps):
         
+        epoch = (t+1) // steps_per_epoch
         # Until start_steps have elapsed, randomly sample actions
         # from a uniform distribution for better exploration. Afterwards, 
         # use the learned policy. 
@@ -299,6 +321,8 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
             a = env.action_space.sample()
 
         # Step the env
+
+
         o2, r, d, _, _ = env.step(a)
         ep_ret += r
         ep_len += 1
@@ -309,6 +333,7 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
         d = False if ep_len==max_ep_len else d
 
         # Store experience to replay buffer
+
         replay_buffer.store(o, a, r, o2, d)
 
         # Super critical, easy to overlook step: make sure to update 
@@ -317,6 +342,9 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
         # End of trajectory handling
         if d or (ep_len == max_ep_len):
+
+            epoch = (t+1) // steps_per_epoch
+
             o, _, = env.reset()
             ep_ret, ep_len = 0, 0
 
@@ -326,9 +354,10 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 batch = replay_buffer.sample_batch(batch_size)
                 update(data=batch)
 
+                
+
         # End of epoch handling
         if (t+1) % steps_per_epoch == 0:
-            epoch = (t+1) // steps_per_epoch
 
             # Test the performance of the deterministic version of the agent.
             if(epoch % 10 == 0):            
@@ -336,9 +365,27 @@ def sac(env_fn, actor_critic=Model.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 now = time.time()
 
                 s = (int)(now - start_time)
-
-                print(f"Epoch: {epoch}, Timestep: {t+1}, Time: {s//3600:02}:{s%3600//60:02}:{s%60:02}", )
                 test_epochs.append(epoch)
                 test_reward = test_agent()
                 test_rewards.append(test_reward)
+                print(f"Epoch: {epoch}, Timestep: {t+1}, Reward: {test_reward:.2f},  Time: {s//3600:02}:{s%3600//60:02}:{s%60:02}", )
+
+                with open(f'{save_dir}/training.log', 'a') as file:
+                    file.write(f'Epoch: {epoch}, Timestep: {t+1}, Reward: {test_reward:.2f},  Time: {s//3600:02}:{s%3600//60:02}:{s%60:02}\n')
+
+                if plot:
+                    line.set_xdata(test_epochs)
+                    line.set_ydata(test_rewards)
+                    ax.set_xlim(0, len(test_epochs))
+                    ax.set_ylim(min(test_rewards), max(test_rewards) * 1.1)
+
+                    fig.canvas.draw()
+                    fig.canvas.flush_events()
+
+        if(epoch % save_freq == 0 and save):
+            torch.save(ac.pi.state_dict(), f'{save_dir}/ep_{epoch}_policy.pth')
+
+    if plot:
+        plt.ioff()
+        plt.show()
 
