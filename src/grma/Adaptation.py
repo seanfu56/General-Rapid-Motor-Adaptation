@@ -32,9 +32,9 @@ class NpDataset(Dataset):
 
         return image, label
 
-EPOCH = 3000
+EPOCH = 30000
 
-ENV = 'Humanoid-v4'
+ENV = 'HalfCheetah-v4'
 MODEL = 'rnn'
 
 env = gym.make(ENV)
@@ -79,7 +79,7 @@ if(MODEL == 'cnn'):
     model = CNN(STATE_DIM, ACTION_DIM, LENGTH).to(device)
     modelinfo = summary(model, (1, STATE_DIM+ACTION_DIM, LENGTH), verbose=0)
 elif(MODEL == 'rnn'):
-    model = RNN(STATE_DIM, ACTION_DIM, LENGTH).to(device)
+    model = RNN(STATE_DIM, ACTION_DIM, LENGTH, hidden_dim=64).to(device)
     modelinfo = summary(model, (1, LENGTH, STATE_DIM+ACTION_DIM), verbose=0)
 elif(MODEL == 'mlp'):
     model = MLP(STATE_DIM, ACTION_DIM, LENGTH).to(device)

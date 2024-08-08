@@ -1,5 +1,7 @@
 # model_ckpt/
 traj/
+test/
+wandb/
 # adapt_model/
 *.pth
 
