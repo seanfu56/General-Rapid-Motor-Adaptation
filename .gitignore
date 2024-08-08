@@ -1,8 +1,9 @@
-# model_ckpt/
+model_ckpt/
+ori_model_ckpt/
 traj/
 test/
 wandb/
-# adapt_model/
+adapt_model/
 *.pth
 
 # Byte-compiled / optimized / DLL files
